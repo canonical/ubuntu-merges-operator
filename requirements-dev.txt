@@ -20,7 +20,7 @@ ops==3.4.0
     #   ops-scenario
 ops-scenario==8.4.0
     # via ops
-packaging==25.0
+packaging==26.2
     # via pytest
 pluggy==1.6.0
     # via pytest
