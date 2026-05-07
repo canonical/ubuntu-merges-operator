@@ -450,7 +450,7 @@ from momlib import *
 
     <footer>
         Generated at {now_str} by 
-        <strong>merge-o-matic</strong> (revision {revision}).
+        <a href="https://github.com/canonical/ubuntu-merges-operator"><strong>merge-o-matic</strong></a> (revision {revision}).
     </footer>
 </div>
               """,
