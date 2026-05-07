@@ -22,6 +22,22 @@ If you only want to check without fixing, use:
 make lint
 ```
 
+## Dependencies
+
+To update the lock file (e.g. after changing `pyproject.toml` dependencies):
+
+```
+make update-dependencies
+```
+
+To regenerate `requirements.txt` and `requirements-dev.txt`:
+
+```
+make generate-requirements
+```
+
+Do not invoke `uv pip compile` or `uv lock` directly.
+
 ## Workflow
 
 After making code changes, and before proposing or presenting them, always:
