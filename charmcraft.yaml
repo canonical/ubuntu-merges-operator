@@ -36,8 +36,6 @@ parts:
       - app/
 
 charm-libs:
-  - lib: operator_libs_linux.systemd
-    version: "1"
   - lib: traefik_k8s.ingress
     version: "2"
 

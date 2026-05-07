@@ -4,9 +4,11 @@ annotated-types==0.7.0
     # via pydantic
 charmlibs-apt==1.0.0.post0
     # via ubuntu-merges-operator (pyproject.toml)
+charmlibs-systemd==1.0.0
+    # via ubuntu-merges-operator (pyproject.toml)
 coverage==7.13.5
     # via ubuntu-merges-operator (pyproject.toml)
-importlib-metadata==9.0.0
+importlib-metadata==8.7.1
     # via opentelemetry-api
 iniconfig==2.3.0
     # via pytest
@@ -41,6 +43,7 @@ ruff==0.15.12
 typing-extensions==4.15.0
     # via
     #   opentelemetry-api
+    #   ops-scenario
     #   pydantic
     #   pydantic-core
     #   typing-inspection

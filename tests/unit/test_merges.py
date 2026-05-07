@@ -18,14 +18,14 @@ def merges_instance():
     return merges.Merges()
 
 
-@patch("charms.operator_libs_linux.v1.systemd.service_running")
+@patch("charmlibs.systemd.service_running")
 def test_updating_true(mock_service_running, merges_instance):
     mock_service_running.return_value = True
     assert merges_instance.updating
     mock_service_running.assert_called_once_with("ubuntu-merges.service")
 
 
-@patch("charms.operator_libs_linux.v1.systemd.service_running")
+@patch("charmlibs.systemd.service_running")
 def test_updating_false(mock_service_running, merges_instance):
     mock_service_running.return_value = False
     assert not merges_instance.updating
@@ -114,7 +114,7 @@ def test_configure_apache_copy_failure(mock_path, mock_shutil, mock_run, merges_
 
 
 @patch("merges.Path")
-@patch("charms.operator_libs_linux.v1.systemd.service_enable")
+@patch("charmlibs.systemd.service_enable")
 def test_setup_systemd_units_success(mock_service_enable, mock_path, merges_instance):
     mock_unit_loc = MagicMock()
     mock_service_file = MagicMock()
@@ -140,7 +140,7 @@ def test_setup_systemd_units_success(mock_service_enable, mock_path, merges_inst
     mock_service_enable.assert_called_once_with("--now", "ubuntu-merges.timer")
 
 
-@patch("charms.operator_libs_linux.v1.systemd.service_enable")
+@patch("charmlibs.systemd.service_enable")
 @patch("merges.Path")
 def test_setup_systemd_units_with_proxies(mock_path, mock_service_enable, merges_instance):
     # Test proxy URLs
@@ -221,7 +221,7 @@ def test_setup_systemd_units_enable_failure(mock_path, merges_instance):
     mock_service_file.read_text.return_value = "Service Content"
     mock_timer_file.read_text.return_value = "Timer Content"
 
-    with patch("charms.operator_libs_linux.v1.systemd.service_enable") as mock_enable:
+    with patch("charmlibs.systemd.service_enable") as mock_enable:
         mock_enable.side_effect = CalledProcessError(1, "systemctl enable")
         with pytest.raises(CalledProcessError):
             merges_instance._setup_systemd_units()
@@ -354,14 +354,14 @@ def test_install_application_failure(mock_copytree, merges_instance):
         merges_instance._install_application()
 
 
-@patch("charms.operator_libs_linux.v1.systemd.service_restart")
+@patch("charmlibs.systemd.service_restart")
 def test_restart_apache_success(mock_restart, merges_instance):
     """Test successful Apache restart."""
     merges_instance.restart_apache()
     mock_restart.assert_called_once_with("apache2")
 
 
-@patch("charms.operator_libs_linux.v1.systemd.service_restart")
+@patch("charmlibs.systemd.service_restart")
 def test_restart_apache_failure(mock_restart, merges_instance):
     """Test failed Apache restart."""
     mock_restart.side_effect = CalledProcessError(1, "apache2")
@@ -370,7 +370,7 @@ def test_restart_apache_failure(mock_restart, merges_instance):
 
 
 @patch("merges.Merges.restart_apache")
-@patch("charms.operator_libs_linux.v1.systemd.service_start")
+@patch("charmlibs.systemd.service_start")
 def test_start_success(mock_start, mock_restart_apache, merges_instance):
     """Test successful start."""
     merges_instance.start()
@@ -387,7 +387,7 @@ def test_start_apache_failure(mock_restart_apache, merges_instance):
 
 
 @patch("merges.Merges.restart_apache")
-@patch("charms.operator_libs_linux.v1.systemd.service_start")
+@patch("charmlibs.systemd.service_start")
 def test_start_systemd_failure(mock_start, mock_restart_apache, merges_instance):
     """Test start failure when systemd service start fails."""
     mock_restart_apache.return_value = None
@@ -398,13 +398,13 @@ def test_start_systemd_failure(mock_start, mock_restart_apache, merges_instance)
     mock_start.assert_called_once_with("--no-block", "ubuntu-merges")
 
 
-@patch("charms.operator_libs_linux.v1.systemd.service_start")
+@patch("charmlibs.systemd.service_start")
 def test_refresh_report_success(mock_start, merges_instance):
     merges_instance.refresh_report()
     mock_start.assert_called_once_with("ubuntu-merges.service")
 
 
-@patch("charms.operator_libs_linux.v1.systemd.service_start")
+@patch("charmlibs.systemd.service_start")
 def test_refresh_report_failure(mock_start, merges_instance):
     mock_start.side_effect = CalledProcessError(1, "start failed")
     with pytest.raises(CalledProcessError):
