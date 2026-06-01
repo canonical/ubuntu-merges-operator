@@ -8,15 +8,15 @@ charmlibs-systemd==1.0.0
     # via ubuntu-merges-operator (pyproject.toml)
 importlib-metadata==8.7.1
     # via opentelemetry-api
-opentelemetry-api==1.41.1
+opentelemetry-api==1.42.1
     # via
     #   charmlibs-apt
     #   ops
-ops==3.7.0
+ops==3.7.1
     # via ubuntu-merges-operator (pyproject.toml)
 pydantic==2.13.4
     # via ubuntu-merges-operator (pyproject.toml)
-pydantic-core==2.46.4
+pydantic-core==2.47.0
     # via pydantic
 pyyaml==6.0.3
     # via ops
