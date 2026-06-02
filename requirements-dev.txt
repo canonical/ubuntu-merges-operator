@@ -6,21 +6,21 @@ charmlibs-apt==1.0.0.post0
     # via ubuntu-merges-operator (pyproject.toml)
 charmlibs-systemd==1.0.0
     # via ubuntu-merges-operator (pyproject.toml)
-coverage==7.13.5
+coverage==7.14.1
     # via ubuntu-merges-operator (pyproject.toml)
 importlib-metadata==9.0.0
     # via opentelemetry-api
 iniconfig==2.3.0
     # via pytest
-opentelemetry-api==1.41.1
+opentelemetry-api==1.42.1
     # via
     #   charmlibs-apt
     #   ops
-ops==3.7.0
+ops==3.7.1
     # via
     #   ubuntu-merges-operator (pyproject.toml)
     #   ops-scenario
-ops-scenario==8.7.0
+ops-scenario==8.7.1
     # via ops
 packaging==26.2
     # via pytest
@@ -28,7 +28,7 @@ pluggy==1.6.0
     # via pytest
 pydantic==2.13.4
     # via ubuntu-merges-operator (pyproject.toml)
-pydantic-core==2.46.4
+pydantic-core==2.47.0
     # via pydantic
 pygments==2.20.0
     # via pytest
@@ -38,7 +38,7 @@ pyyaml==6.0.3
     # via
     #   ops
     #   ops-scenario
-ruff==0.15.12
+ruff==0.15.15
     # via ubuntu-merges-operator (pyproject.toml)
 typing-extensions==4.15.0
     # via
