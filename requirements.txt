@@ -6,7 +6,7 @@ charmlibs-apt==1.0.0.post0
     # via ubuntu-merges-operator (pyproject.toml)
 charmlibs-systemd==1.0.0
     # via ubuntu-merges-operator (pyproject.toml)
-importlib-metadata==8.7.1
+importlib-metadata==9.0.0
     # via opentelemetry-api
 opentelemetry-api==1.41.1
     # via
