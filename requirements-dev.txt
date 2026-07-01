@@ -4,7 +4,7 @@ annotated-types==0.7.0
     # via pydantic
 charmlibs-apt==1.0.0.post0
     # via ubuntu-merges-operator (pyproject.toml)
-charmlibs-systemd==1.0.0
+charmlibs-systemd==1.0.0.post0
     # via ubuntu-merges-operator (pyproject.toml)
 coverage==7.14.1
     # via ubuntu-merges-operator (pyproject.toml)
