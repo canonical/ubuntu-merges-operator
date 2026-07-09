@@ -161,7 +161,8 @@ def main(options, args):
             excludes.extend(read_package_list(filename))
 
     includes = []
-    if options.include is not None:
+    has_include_filter = options.include is not None
+    if has_include_filter:
         for filename in options.include:
             includes.extend(read_package_list(filename))
 
@@ -185,7 +186,7 @@ def main(options, args):
                 continue
             if our_source["Package"] in blocklist:
                 continue
-            if len(includes) and our_source["Package"] not in includes:
+            if has_include_filter and our_source["Package"] not in includes:
                 continue
             if len(excludes) and our_source["Package"] in excludes:
                 continue
