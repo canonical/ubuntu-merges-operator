@@ -214,6 +214,7 @@ def main(options, args):
                 )
                 logging.debug("%s: %s is %s", package, src_distro, src_version)
             except IndexError:
+                cleanup(result_dir(package))
                 continue
 
             try:
