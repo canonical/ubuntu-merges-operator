@@ -504,8 +504,60 @@ def get_nearest_source(package, base):
     try:
         return get_pool_source(OUR_DISTRO, package, base)
     except (OSError, IndexError):
-        version_sort(bases)
-        return bases.pop()
+        pass
+
+    # The exact base version may have been pruned from the archive mirror
+    # pool (Debian in particular doesn't keep old orig tarballs around),
+    # but Launchpad retains historical publishing records and source files
+    # long after removal from the mirror; that's what pull-lp-source
+    # relies on too. Try fetching it from there before settling for an
+    # older version as the merge base.
+    try:
+        fetch_source_from_launchpad(SRC_DISTRO, package, base)
+        return get_pool_source(SRC_DISTRO, package, base)
+    except (OSError, IndexError):
+        pass
+
+    version_sort(bases)
+    return bases.pop()
+
+
+def fetch_source_from_launchpad(distro, package, version):
+    """Fetch a specific source package version's files from Launchpad.
+
+    Adds them to our local pool, for cases where the version has been
+    pruned from the archive mirror pool but Launchpad still has it in its
+    publishing history and librarian.
+    """
+    archive = get_launchpad().distributions[distro].main_archive
+    spphs = archive.getPublishedSources(
+        source_name=package,
+        version=str(version),
+        exact_match=True,
+    )
+    spph = next(iter(spphs), None)
+    if spph is None:
+        raise IndexError(
+            "%s %s not found in Launchpad %s archive" % (package, version, distro),
+        )
+
+    pooldir = pool_directory(distro, package)
+    for url in spph.sourceFileUrls():
+        name = url.rsplit("/", 1)[-1]
+        filename = "%s/%s/%s" % (ROOT, pooldir, name)
+        if os.path.isfile(filename):
+            continue
+
+        logging.info("Fetching %s from Launchpad", name)
+        ensure(filename)
+        try:
+            with closing(urlopen(url)) as url_f, open(filename, "wb") as out_f:
+                out_f.write(url_f.read())
+        except OSError:
+            logging.warning("Downloading %s from Launchpad failed", url)
+            raise
+
+    update_pool_sources(distro, package)
 
 
 def get_same_source(distro, dist, package):
