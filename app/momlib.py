@@ -616,14 +616,19 @@ def unpack_source(distro, source):
     try:
         env = dict(os.environ)
         env["DEB_VENDOR"] = distro
-        with open(os.devnull, "wb") as devnull:
-            subprocess.check_call(
-                ("dpkg-source", "--skip-patches", "-x", dsc_file, destdir),
-                cwd=srcdir,
-                env=env,
-                stdout=devnull,
-                stderr=devnull,
+        result = subprocess.run(
+            ("dpkg-source", "--skip-patches", "-x", dsc_file, destdir),
+            cwd=srcdir,
+            env=env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if result.returncode != 0:
+            logging.warning(
+                "dpkg-source failed for %s: %s", dsc_file, result.stderr.strip()
             )
+            raise subprocess.CalledProcessError(result.returncode, result.args)
         # Make sure we can at least read everything under .pc, which isn't
         # automatically true with dpkg-dev 1.15.4.
         pc_dir = os.path.join(destdir, ".pc")
