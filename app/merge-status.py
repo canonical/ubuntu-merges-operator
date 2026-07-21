@@ -486,7 +486,44 @@ from momlib import *
                         for (var i=0; i < long_lines.length; i++) {
                             long_lines[i].style.display = show_binaries;
                         }
+
+                        var search = (query.value ? "query=" + encodeURIComponent(query.value) + "&" : "") +
+                            "showProposed=" + encodeURIComponent(showProposed.checked) + "&" +
+                            "showMergeNeeded=" + encodeURIComponent(showMergeNeeded.checked) + "&" +
+                            "showLongBinaries=" + encodeURIComponent(showLongBinaries.checked);
+
+                        history.replaceState(
+                            {
+                                "query": query.value,
+                                "showProposed": showProposed.checked,
+                                "showMergeNeeded": showMergeNeeded.checked,
+                                "showLongBinaries": showLongBinaries.checked
+                            },
+                            "", "?" + search
+                        );
                     }
+
+                    // Set initial filter state from search part of URL, so filters are bookmarkable
+                    var initState = location.search.substring(1).split("&");
+                    for (var i = 0; i < initState.length; i++) {
+                        var kv = initState[i].split("=");
+                        switch (decodeURIComponent(kv[0])) {
+                            case "query":
+                                query.value = decodeURIComponent(kv[1]);
+                                break;
+                            case "showProposed":
+                                showProposed.checked = ("true" == decodeURIComponent(kv[1]));
+                                break;
+                            case "showMergeNeeded":
+                                showMergeNeeded.checked = ("true" == decodeURIComponent(kv[1]));
+                                break;
+                            case "showLongBinaries":
+                                showLongBinaries.checked = ("true" == decodeURIComponent(kv[1]));
+                                break;
+                        }
+                    }
+
+                    filterText();
 
                     query.addEventListener('input', filterText);
                     showProposed.addEventListener('change', filterText);
