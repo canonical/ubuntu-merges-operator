@@ -99,8 +99,9 @@ def options(parser):
         "--dest-suite",
         type="string",
         metavar="SUITE",
-        default=get_our_dist(),
-        help="Destination suite (aka distrorelease)",
+        default=None,
+        help="Destination suite (aka distrorelease), "
+        "default: current Ubuntu development series",
     )
 
     parser.add_option(
@@ -119,7 +120,7 @@ def main(options, args):
     src_distro = options.source_distro
 
     our_distro = options.dest_distro
-    our_dist = options.dest_suite
+    our_dist = options.dest_suite or get_our_dist()
 
     blocklist = read_blocklist()
 

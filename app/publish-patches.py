@@ -52,14 +52,15 @@ def options(parser):
         "--suite",
         type="string",
         metavar="SUITE",
-        default=get_our_dist(),
-        help="Suite (aka distrorelease) to publish",
+        default=None,
+        help="Suite (aka distrorelease) to publish, "
+        "default: current Ubuntu development series",
     )
 
 
 def main(options, args):
     distro = options.distro
-    dist = options.suite
+    dist = options.suite or get_our_dist()
 
     blocklist = read_blocklist()
 
