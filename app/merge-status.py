@@ -32,7 +32,6 @@ from email.utils import parseaddr
 from deb.controlfile import ControlFile
 from momlib import (
     DISTROS,
-    OUR_DIST,
     OUR_DISTRO,
     ROOT,
     SRC_DIST,
@@ -41,6 +40,7 @@ from momlib import (
     files,
     get_date_superseded,
     get_importance,
+    get_our_dist,
     get_person_lp_page,
     get_responsible_team,
     get_sources,
@@ -99,8 +99,9 @@ def options(parser):
         "--dest-suite",
         type="string",
         metavar="SUITE",
-        default=OUR_DIST,
-        help="Destination suite (aka distrorelease)",
+        default=None,
+        help="Destination suite (aka distrorelease), "
+        "default: current Ubuntu development series",
     )
 
     parser.add_option(
@@ -119,7 +120,7 @@ def main(options, args):
     src_distro = options.source_distro
 
     our_distro = options.dest_distro
-    our_dist = options.dest_suite
+    our_dist = options.dest_suite or get_our_dist()
 
     blocklist = read_blocklist()
 

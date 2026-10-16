@@ -26,6 +26,7 @@ from momlib import (
     changes_file,
     cleanup_source,
     diff_file,
+    get_dists,
     get_pool_distros,
     get_pool_sources,
     get_sources,
@@ -70,7 +71,7 @@ def main(options, args):
     # For each package in the given distributions, iterate the pool in order
     # and generate a diff from the previous version and a changes file
     for distro in distros:
-        for dist in DISTROS[distro]["dists"]:
+        for dist in get_dists(distro):
             for component in DISTROS[distro]["components"]:
                 if (
                     options.component is not None

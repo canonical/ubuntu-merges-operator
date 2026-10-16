@@ -40,6 +40,7 @@ from momlib import (
     diff_file,
     diff_rss_file,
     get_base,
+    get_dists,
     get_pool_distros,
     get_pool_sources,
     get_sources,
@@ -106,7 +107,7 @@ def main(options, args):
     # For each package in the given distributions, iterate the pool in order
     # and select various interesting files for syndication
     for distro in distros:
-        for dist in DISTROS[distro]["dists"]:
+        for dist in get_dists(distro):
             for component in DISTROS[distro]["components"]:
                 if (
                     options.component is not None

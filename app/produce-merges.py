@@ -32,7 +32,6 @@ from deb.controlfile import ControlFile
 from deb.version import Version
 from momlib import (
     DISTROS,
-    OUR_DIST,
     OUR_DISTRO,
     ROOT,
     SRC_DIST,
@@ -43,6 +42,7 @@ from momlib import (
     files,
     get_base,
     get_nearest_source,
+    get_our_dist,
     get_pool_source,
     get_same_source,
     get_sources,
@@ -102,8 +102,9 @@ def options(parser):
         "--dest-suite",
         type="string",
         metavar="SUITE",
-        default=OUR_DIST,
-        help="Destination suite (aka distrorelease)",
+        default=None,
+        help="Destination suite (aka distrorelease), "
+        "default: current Ubuntu development series",
     )
 
     parser.add_option(
@@ -153,7 +154,7 @@ def main(options, args):
     src_dist = options.source_suite
 
     our_distro = options.dest_distro
-    our_dist = options.dest_suite
+    our_dist = options.dest_suite or get_our_dist()
 
     excludes = []
     if options.exclude is not None:

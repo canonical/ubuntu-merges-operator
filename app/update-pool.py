@@ -33,6 +33,7 @@ from momlib import (
     changes_file,
     ensure,
     files,
+    get_dists,
     get_pool_distros,
     get_sources,
     pool_directory,
@@ -74,7 +75,7 @@ def main(options, args):
     # Download the current sources for the given distributions and download
     # any new contents into our pool
     for distro in distros:
-        for dist in DISTROS[distro]["dists"]:
+        for dist in get_dists(distro):
             for component in DISTROS[distro]["components"]:
                 update_sources(distro, dist, component)
 

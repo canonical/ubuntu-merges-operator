@@ -25,6 +25,7 @@ from momlib import (
     cleanup_source,
     dpatch_directory,
     ensure,
+    get_dists,
     get_pool_distros,
     get_pool_sources,
     get_sources,
@@ -67,7 +68,7 @@ def main(options, args):
     # For each package in the given distributions, iterate the pool in order
     # and extract patches from debian/patches
     for distro in distros:
-        for dist in DISTROS[distro]["dists"]:
+        for dist in get_dists(distro):
             for component in DISTROS[distro]["components"]:
                 if (
                     options.component is not None

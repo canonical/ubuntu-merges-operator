@@ -24,12 +24,12 @@ import time
 from deb.version import Version
 from momlib import (
     DISTROS,
-    OUR_DIST,
     OUR_DISTRO,
     ROOT,
     SRC_DIST,
     SRC_DISTRO,
     get_base,
+    get_our_dist,
     get_same_source,
     get_sources,
     get_team_packages,
@@ -90,8 +90,9 @@ def options(parser):
         "--dest-suite",
         type="string",
         metavar="SUITE",
-        default=OUR_DIST,
-        help="Destination suite (aka distrorelease)",
+        default=None,
+        help="Destination suite (aka distrorelease), "
+        "default: current Ubuntu development series",
     )
 
     parser.add_option(
@@ -131,7 +132,7 @@ def main(options, args):
     src_dist = options.source_suite
 
     our_distro = options.dest_distro
-    our_dist = options.dest_suite
+    our_dist = options.dest_suite or get_our_dist()
 
     team = options.team
     team_package_list = get_team_packages(team)

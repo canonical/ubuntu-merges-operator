@@ -23,11 +23,12 @@ from collections import defaultdict
 
 from momlib import (
     DISTROS,
-    OUR_DIST,
     OUR_DISTRO,
     ROOT,
     files,
     get_base,
+    get_dists,
+    get_our_dist,
     get_pool_distros,
     get_pool_sources,
     get_sources,
@@ -60,7 +61,7 @@ def main(options, args):
     # package names.  Expire from all distributions.
     our_sources = set()
     for component in DISTROS[OUR_DISTRO]["components"]:
-        for source in get_sources(OUR_DISTRO, OUR_DIST, component):
+        for source in get_sources(OUR_DISTRO, get_our_dist(), component):
             our_sources.add(source["Package"])
             if (
                 options.package is not None
@@ -81,7 +82,7 @@ def main(options, args):
             continue
 
         distro_sources = defaultdict(list)
-        for dist in DISTROS[distro]["dists"]:
+        for dist in get_dists(distro):
             for component in DISTROS[distro]["components"]:
                 for source in get_sources(distro, dist, component):
                     distro_sources[source["Package"]].append(source)
