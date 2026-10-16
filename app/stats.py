@@ -24,12 +24,12 @@ import time
 from deb.version import Version
 from momlib import (
     DISTROS,
-    OUR_DIST,
     OUR_DISTRO,
     ROOT,
     SRC_DIST,
     SRC_DISTRO,
     get_base,
+    get_our_dist,
     get_same_source,
     get_sources,
     get_team_packages,
@@ -90,7 +90,7 @@ def options(parser):
         "--dest-suite",
         type="string",
         metavar="SUITE",
-        default=OUR_DIST,
+        default=get_our_dist(),
         help="Destination suite (aka distrorelease)",
     )
 

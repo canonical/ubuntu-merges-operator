@@ -32,7 +32,6 @@ from email.utils import parseaddr
 from deb.controlfile import ControlFile
 from momlib import (
     DISTROS,
-    OUR_DIST,
     OUR_DISTRO,
     ROOT,
     SRC_DIST,
@@ -41,6 +40,7 @@ from momlib import (
     files,
     get_date_superseded,
     get_importance,
+    get_our_dist,
     get_person_lp_page,
     get_responsible_team,
     get_sources,
@@ -99,7 +99,7 @@ def options(parser):
         "--dest-suite",
         type="string",
         metavar="SUITE",
-        default=OUR_DIST,
+        default=get_our_dist(),
         help="Destination suite (aka distrorelease)",
     )
 

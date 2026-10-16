@@ -51,7 +51,7 @@ ROOT = "/srv/merges"
 DISTROS = {
     "ubuntu": {
         "mirror": "http://archive.ubuntu.com/ubuntu",
-        "dists": ["stonking"],
+        # "dists" is resolved at runtime, see get_dists()
         "components": ["main", "restricted", "universe", "multiverse"],
         "expire": True,
     },
@@ -68,9 +68,9 @@ DISTROS = {
     },
 }
 
-# Destination distribution and release
+# Destination distribution; the release is resolved at runtime, see
+# get_our_dist()
 OUR_DISTRO = "ubuntu"
-OUR_DIST = "stonking"
 
 # Default source distribution and release
 SRC_DISTRO = "debian"
@@ -1009,6 +1009,35 @@ def get_launchpad():
     return LAUNCHPAD
 
 
+_our_dist = None
+
+
+def get_our_dist():
+    """Return the destination release (Ubuntu development series).
+
+    Uses $MOM_OUR_DIST when set, so a whole cron run shares a single value,
+    otherwise asks Launchpad for the distribution's current series.
+    """
+    global _our_dist
+
+    if _our_dist is None:
+        _our_dist = os.environ.get("MOM_OUR_DIST")
+        if not _our_dist:
+            distro = get_launchpad().distributions[OUR_DISTRO]
+            _our_dist = distro.current_series.name
+            logging.debug(
+                "Resolved %s series from Launchpad: %s", OUR_DISTRO, _our_dist
+            )
+    return _our_dist
+
+
+def get_dists(distro):
+    """Return the list of releases to track for the given distribution."""
+    if distro == OUR_DISTRO:
+        return [get_our_dist()]
+    return DISTROS[distro]["dists"]
+
+
 def get_date_superseded(package, base_version):
     from debian.debian_support import Version
 
@@ -1049,7 +1078,7 @@ def proposed_package_version(package, our_version):
     our_version = Version(our_version)
 
     our_distro = get_launchpad().distributions[OUR_DISTRO]
-    our_series = our_distro.getSeries(name_or_version=OUR_DIST)
+    our_series = our_distro.getSeries(name_or_version=get_our_dist())
     our_archive = our_distro.main_archive
 
     proposed_pkg = None

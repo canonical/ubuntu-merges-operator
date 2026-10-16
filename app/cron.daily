@@ -49,6 +49,13 @@ fi
 
 cd "$MOMLIB_ROOT"/code
 
+# Resolve the Ubuntu development series once so every script in this run
+# agrees on it, even if Launchpad flips the current series mid-run
+if [ -z "$MOM_OUR_DIST" ]; then
+	MOM_OUR_DIST="$(python3 -c 'from momlib import get_our_dist; print(get_our_dist())')"
+fi
+export MOM_OUR_DIST
+
 mkdir -p "$MOMLIB_ROOT"/merges/.static
 mkdir -p "$MOMLIB_ROOT"/published/.static
 cp -a static/* "$MOMLIB_ROOT"/merges/.static

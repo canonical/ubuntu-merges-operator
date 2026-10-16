@@ -26,6 +26,7 @@ import tempfile
 from momlib import (
     DISTROS,
     download_source,
+    get_dists,
     get_pool_distros,
     get_pool_sources,
     get_sources,
@@ -88,7 +89,7 @@ def main(options, args):
         if options.distro is not None and distro not in options.distro:
             continue
         sourcenames = set()
-        for dist in DISTROS[distro]["dists"]:
+        for dist in get_dists(distro):
             for component in DISTROS[distro]["components"]:
                 for source in get_sources(distro, dist, component):
                     sourcenames.add(source["Package"])

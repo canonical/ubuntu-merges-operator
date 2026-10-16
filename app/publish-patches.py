@@ -22,12 +22,12 @@ import os
 
 from momlib import (
     DISTROS,
-    OUR_DIST,
     OUR_DISTRO,
     ROOT,
     cleanup,
     dpatch_directory,
     ensure,
+    get_our_dist,
     get_sources,
     patch_file,
     patch_list_file,
@@ -52,7 +52,7 @@ def options(parser):
         "--suite",
         type="string",
         metavar="SUITE",
-        default=OUR_DIST,
+        default=get_our_dist(),
         help="Suite (aka distrorelease) to publish",
     )
 

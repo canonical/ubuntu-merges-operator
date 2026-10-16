@@ -22,7 +22,6 @@ from re import search
 from deb.version import Version
 from momlib import (
     DISTROS,
-    OUR_DIST,
     OUR_DISTRO,
     ROOT,
     SRC_DIST,
@@ -31,6 +30,7 @@ from momlib import (
     ensure,
     get_base,
     get_nearest_source,
+    get_our_dist,
     get_pool_source,
     get_same_source,
     get_sources,
@@ -83,7 +83,7 @@ def options(parser):
         "--dest-suite",
         type="string",
         metavar="SUITE",
-        default=OUR_DIST,
+        default=get_our_dist(),
         help="Destination suite (aka distrorelease)",
     )
 

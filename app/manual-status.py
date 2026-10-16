@@ -34,7 +34,6 @@ from deb.controlfile import ControlFile
 from deb.version import Version
 from momlib import (
     DISTROS,
-    OUR_DIST,
     OUR_DISTRO,
     ROOT,
     SRC_DIST,
@@ -45,6 +44,7 @@ from momlib import (
     get_date_superseded,
     get_importance,
     get_nearest_source,
+    get_our_dist,
     get_person_lp_page,
     get_pool_source,
     get_responsible_team,
@@ -103,7 +103,7 @@ def options(parser):
         "--dest-suite",
         type="string",
         metavar="SUITE",
-        default=OUR_DIST,
+        default=get_our_dist(),
         help="Destination suite (aka distrorelease)",
     )
 
