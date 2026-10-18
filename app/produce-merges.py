@@ -230,11 +230,25 @@ def main(options, args):
                     base,
                 )
             except LaunchpadUnavailable:
-                logging.warning(
-                    "%s: can't determine the base without Launchpad, "
-                    "keeping the previous results",
-                    package,
-                )
+                output_dir = result_dir(package)
+                if os.path.isfile("%s/REPORT" % output_dir) or os.path.isfile(
+                    "%s/NO-BASE" % output_dir,
+                ):
+                    logging.warning(
+                        "%s: can't determine the base without Launchpad, "
+                        "keeping the previous results",
+                        package,
+                    )
+                else:
+                    # Still list it, the next run will produce the merge
+                    record_no_base(
+                        our_pool_source,
+                        our_distro,
+                        base,
+                        src_pool_source,
+                        src_distro,
+                        launchpad_unavailable=True,
+                    )
                 continue
             except IndexError:
                 record_no_base(
@@ -258,12 +272,20 @@ def main(options, args):
             )
 
 
-def record_no_base(left_source, left_distro, base, right_source, right_distro):
+def record_no_base(
+    left_source,
+    left_distro,
+    base,
+    right_source,
+    right_distro,
+    launchpad_unavailable=False,
+):
     """Record a merge for which no base version could be found.
 
     No automatic merge can be produced, so this only writes a NO-BASE file
     with the versions involved, for merge-status.py to list the package
-    alongside the other merges.
+    alongside the other merges. With launchpad_unavailable, the base is
+    unknown rather than missing, and the next run will try again.
     """
     package = left_source["Package"]
     output_dir = result_dir(package)
@@ -279,7 +301,8 @@ def record_no_base(left_source, left_distro, base, right_source, right_distro):
         return
 
     logging.info(
-        "No base found for %s: %s <- %s? -> %s",
+        "No base %s for %s: %s <- %s? -> %s",
+        "checked" if launchpad_unavailable else "found",
         package,
         left_source["Version"],
         base,
@@ -294,8 +317,15 @@ def record_no_base(left_source, left_distro, base, right_source, right_distro):
         print("%s" % package, file=no_base)
         print("%s" % time.ctime(), file=no_base)
         print(file=no_base)
-        print(
-            fill(
+        if launchpad_unavailable:
+            explanation = (
+                "The base version of this merge (%s was wanted) couldn't be "
+                "checked because Launchpad was unavailable, so no automatic "
+                "merge was produced yet. The next run will try again."
+                % base
+            )
+        else:
+            explanation = (
                 "No common base version could be found for the %s and %s "
                 "versions of this package (%s was wanted, and no older %s "
                 "version is available), so no automatic merge was "
@@ -305,10 +335,9 @@ def record_no_base(left_source, left_distro, base, right_source, right_distro):
                     right_distro.title(),
                     base,
                     right_distro.title(),
-                ),
-            ),
-            file=no_base,
-        )
+                )
+            )
+        print(fill(explanation), file=no_base)
         print(file=no_base)
         print("%s: %s" % (left_distro, left_source["Version"]), file=no_base)
         print("%s: %s" % (right_distro, right_source["Version"]), file=no_base)

@@ -636,7 +636,7 @@ def do_table(status, merges, left_distro, right_distro, component):
 
         if base_version is None:
             report = "NO-BASE"
-            base_cell = '<td title="No base version found, merge manually">&ndash;</td>'
+            base_cell = '<td title="No base version, follow the package link for details">&ndash;</td>'
         else:
             report = "REPORT"
             base_cell = f"<td>{base_version}</td>"
