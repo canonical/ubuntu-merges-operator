@@ -218,8 +218,8 @@ def main(options, args):
                 cleanup(result_dir(package))
                 continue
 
+            base = get_base(our_pool_source)
             try:
-                base = get_base(our_pool_source)
                 base_source = get_nearest_source(package, base)
                 base_version = Version(base_source["Version"])
                 logging.debug(
@@ -229,6 +229,13 @@ def main(options, args):
                     base,
                 )
             except IndexError:
+                record_no_base(
+                    our_pool_source,
+                    our_distro,
+                    base,
+                    src_pool_source,
+                    src_distro,
+                )
                 continue
 
             produce_merge(
@@ -241,6 +248,62 @@ def main(options, args):
                 src_dist,
                 force=options.force,
             )
+
+
+def record_no_base(left_source, left_distro, base, right_source, right_distro):
+    """Record a merge for which no base version could be found.
+
+    No automatic merge can be produced, so this only writes a NO-BASE file
+    with the versions involved, for merge-status.py to list the package
+    alongside the other merges.
+    """
+    package = left_source["Package"]
+    output_dir = result_dir(package)
+
+    # Same checks as produce_merge(): skip packages without Ubuntu changes
+    # or where Debian isn't ahead of us
+    if (
+        re.search(".*build[0-9]+$", left_source["Version"])
+        or base >= left_source["Version"]
+        or base >= right_source["Version"]
+    ):
+        cleanup(output_dir)
+        return
+
+    logging.info(
+        "No base found for %s: %s <- %s? -> %s",
+        package,
+        left_source["Version"],
+        base,
+        right_source["Version"],
+    )
+
+    # Drop any stale merge results from an earlier version
+    cleanup(output_dir)
+    os.makedirs(output_dir)
+
+    with open("%s/NO-BASE" % output_dir, "wt") as no_base:
+        print("%s" % package, file=no_base)
+        print("%s" % time.ctime(), file=no_base)
+        print(file=no_base)
+        print(
+            fill(
+                "No common base version could be found for the %s and %s "
+                "versions of this package (%s was wanted, and no older %s "
+                "version is available), so no automatic merge was "
+                "produced. The merge has to be done manually."
+                % (
+                    left_distro.title(),
+                    right_distro.title(),
+                    base,
+                    right_distro.title(),
+                ),
+            ),
+            file=no_base,
+        )
+        print(file=no_base)
+        print("%s: %s" % (left_distro, left_source["Version"]), file=no_base)
+        print("%s: %s" % (right_distro, right_source["Version"]), file=no_base)
 
 
 def produce_merge(

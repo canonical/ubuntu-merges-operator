@@ -820,6 +820,28 @@ def read_report(output_dir, left_distro, right_distro):
     return (base_version, left_version, right_version)
 
 
+def read_no_base(output_dir, left_distro, right_distro):
+    """Read the versions of a merge for which no base could be found."""
+    filename = "%s/NO-BASE" % output_dir
+    if not os.path.isfile(filename):
+        raise ValueError("No NO-BASE file exists")
+
+    left_version = None
+    right_version = None
+
+    with open(filename) as no_base:
+        for line in no_base:
+            if line.startswith("%s:" % left_distro):
+                left_version = Version(line[len(left_distro) + 1 :].strip())
+            elif line.startswith("%s:" % right_distro):
+                right_version = Version(line[len(right_distro) + 1 :].strip())
+
+    if left_version is None or right_version is None:
+        raise ValueError("Insufficient detail in NO-BASE file")
+
+    return (left_version, right_version)
+
+
 # --------------------------------------------------------------------------- #
 # Blacklist handling
 # --------------------------------------------------------------------------- #

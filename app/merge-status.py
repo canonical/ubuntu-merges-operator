@@ -47,6 +47,7 @@ from momlib import (
     pathhash,
     proposed_package_version,
     read_blocklist,
+    read_no_base,
     read_report,
     remove_old_comments,
     result_dir,
@@ -149,19 +150,29 @@ def main(options, args):
         for source in get_sources(our_distro, our_dist, our_component):
             if source["Package"] in blocklist:
                 continue
+            output_dir = result_dir(source["Package"])
             try:
-                output_dir = result_dir(source["Package"])
                 (base_version, left_version, right_version) = read_report(
                     output_dir,
                     our_distro,
                     src_distro,
                 )
             except ValueError:
-                continue
+                # No automatic merge, list it if it has to be merged manually
+                try:
+                    (left_version, right_version) = read_no_base(
+                        output_dir,
+                        our_distro,
+                        src_distro,
+                    )
+                except ValueError:
+                    continue
+                base_version = None
             teams = get_responsible_team(source["Package"])
+            # Without a base, count from when Debian moved past our version
             date_superseded = get_date_superseded(
                 source["Package"],
-                base_version,
+                base_version or left_version,
             )
             if not date_superseded:
                 age = datetime.timedelta(0)
@@ -616,11 +627,18 @@ def do_table(status, merges, left_distro, right_distro, component):
             # grey and display the version number.
             colour_idx = 6
 
+        if base_version is None:
+            report = "NO-BASE"
+            base_cell = '<td title="No base version found, merge manually">&ndash;</td>'
+        else:
+            report = "REPORT"
+            base_cell = f"<td>{base_version}</td>"
+
         print(
             f"""
         <tr bgcolor={COLOURS[colour_idx]} class=first>
             <td>
-                <tt><a href="{pathhash(package)}/{package}/REPORT">{package}</a></tt>
+                <tt><a href="{pathhash(package)}/{package}/{report}">{package}</a></tt>
                 <sup><a href="https://launchpad.net/ubuntu/+source/{package}">LP</a></sup>
                 <sup><a href="https://tracker.debian.org/{package}">PTS</a></sup>
               """,
@@ -727,7 +745,7 @@ def do_table(status, merges, left_distro, right_distro, component):
         print(
             f"""
               <td>{right_version}</td>
-              <td>{base_version}</td>
+              {base_cell}
               </tr>
               """,
             file=status,
@@ -780,7 +798,7 @@ def write_status_json(component, merges, left_distro, right_distro):
                 "uploader": u_who,
                 "teams": list(teams),
                 "binaries": binaries,
-                "base_version": "%s" % base_version,
+                "base_version": None if base_version is None else "%s" % base_version,
                 "left_version": "%s" % left_version,
                 "right_version": "%s" % right_version,
             },

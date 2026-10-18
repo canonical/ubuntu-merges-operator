@@ -117,7 +117,15 @@ fetch https://static-reports.ubuntu.com/package-team-mapping.json package-team-m
 ./stats.py $QUIET -t ubuntu-openstack
 ./stats-graphs.py $QUIET
 ./merge-status.py $QUIET
-./manual-status.py $QUIET
+
+# Merges without a base used to be listed on separate manual pages, they are
+# now part of the main ones. Keep redirects for old links and drop the rest.
+for component in main restricted universe multiverse; do
+	printf '<!DOCTYPE html>\n<meta http-equiv="refresh" content="0; url=%s.html">\n' \
+		"$component" > "$MOMLIB_ROOT/merges/$component-manual.html"
+	rm -f "$MOMLIB_ROOT/merges/$component-manual.json" \
+		"$MOMLIB_ROOT/merges/tomerge-$component-manual"
+done
 
 # Expire any old packages from the pool
 ./expire-pool.py $QUIET
