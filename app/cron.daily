@@ -70,11 +70,23 @@ cp data/HEADER-patches.html "$MOMLIB_ROOT"/published/HEADER.html
 cp data/robots.txt "$MOMLIB_ROOT"/merges/
 cp data/robots.txt "$MOMLIB_ROOT"/published/
 
+# Fetch a file into $MOMLIB_ROOT, keeping the previous copy if the download
+# fails so that a network glitch doesn't abort the whole run
+fetch () {
+	local url="$1" dest="$MOMLIB_ROOT/$2"
+	if wget -nv --timeout=30 --tries=3 -O"$dest.new" "$url"; then
+		mv "$dest.new" "$dest"
+	else
+		echo "WARNING: failed to download $url (wget exit $?), keeping previous copy" >&2
+		rm -f "$dest.new"
+	fi
+}
+
 # Update the blocklist
-wget -q -O"$MOMLIB_ROOT"/sync-blocklist.txt https://ubuntu-archive-team.ubuntu.com/sync-blocklist.txt
+fetch https://static-reports.ubuntu.com/sync-blocklist.txt sync-blocklist.txt
 
 # Update the package to team mapping
-wget -q -O"$MOMLIB_ROOT"/package-team-mapping.json https://ubuntu-archive-team.ubuntu.com/package-team-mapping.json
+fetch https://static-reports.ubuntu.com/package-team-mapping.json package-team-mapping.json
 
 # Download new packages
 ./update-pool.py $QUIET debian ubuntu
