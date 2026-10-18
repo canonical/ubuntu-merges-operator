@@ -36,6 +36,7 @@ from momlib import (
     ROOT,
     SRC_DIST,
     SRC_DISTRO,
+    LaunchpadUnavailable,
     cleanup,
     cleanup_source,
     ensure,
@@ -228,6 +229,13 @@ def main(options, args):
                     base_version,
                     base,
                 )
+            except LaunchpadUnavailable:
+                logging.warning(
+                    "%s: can't determine the base without Launchpad, "
+                    "keeping the previous results",
+                    package,
+                )
+                continue
             except IndexError:
                 record_no_base(
                     our_pool_source,

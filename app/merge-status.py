@@ -36,6 +36,7 @@ from momlib import (
     ROOT,
     SRC_DIST,
     SRC_DISTRO,
+    LaunchpadUnavailable,
     changes_file,
     files,
     get_date_superseded,
@@ -170,10 +171,13 @@ def main(options, args):
                 base_version = None
             teams = get_responsible_team(source["Package"])
             # Without a base, count from when Debian moved past our version
-            date_superseded = get_date_superseded(
-                source["Package"],
-                base_version or left_version,
-            )
+            try:
+                date_superseded = get_date_superseded(
+                    source["Package"],
+                    base_version or left_version,
+                )
+            except LaunchpadUnavailable:
+                date_superseded = None
             if not date_superseded:
                 age = datetime.timedelta(0)
             else:
@@ -619,7 +623,10 @@ def do_table(status, merges, left_distro, right_distro, component):
             who = "&nbsp;"
 
         if left_distro == "ubuntu":
-            proposed_version = proposed_package_version(package, left_version)
+            try:
+                proposed_version = proposed_package_version(package, left_version)
+            except LaunchpadUnavailable:
+                proposed_version = None
         else:
             proposed_version = None
         if proposed_version:

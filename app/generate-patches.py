@@ -26,6 +26,7 @@ from momlib import (
     ROOT,
     SRC_DIST,
     SRC_DISTRO,
+    LaunchpadUnavailable,
     cleanup_source,
     ensure,
     get_base,
@@ -206,6 +207,13 @@ def make_patches(
             base_version,
             base,
         )
+    except LaunchpadUnavailable:
+        logging.warning(
+            "%s: can't determine the base without Launchpad, "
+            "keeping the previous patches",
+            package,
+        )
+        return
     except IndexError:
         return
 

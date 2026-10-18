@@ -24,12 +24,13 @@ import json
 import logging
 import os
 import re
+import shutil
 import stat
 import subprocess
 import sys
 import time
 from collections import defaultdict
-from contextlib import closing
+from contextlib import closing, contextmanager
 from hashlib import md5
 from html import escape
 from optparse import OptionParser
@@ -38,7 +39,9 @@ from urllib.parse import quote
 from urllib.request import urlopen
 from xml.etree import ElementTree
 
+from httplib2 import HttpLib2Error
 from launchpadlib.launchpad import Launchpad
+from lazr.restfulclient.errors import RestfulError
 
 from deb.controlfile import ControlFile
 from deb.version import Version
@@ -489,7 +492,12 @@ def get_pool_source(distro, package, version=None):
 
 
 def get_nearest_source(package, base):
-    """Return the base source or nearest to it."""
+    """Return the base source or nearest to it.
+
+    Raises IndexError if there's no suitable base, and LaunchpadUnavailable
+    if Launchpad was needed to tell but couldn't be queried; callers should
+    then keep their previous results rather than act on a missing base.
+    """
     try:
         sources = get_pool_sources(SRC_DISTRO, package)
     except OSError:
@@ -540,15 +548,16 @@ def find_launchpad_older_version(distro, package, version):
     """Return the highest version of a source package older than the given
     one that Launchpad has ever published in distro, or None.
     """
-    archive = get_launchpad().distributions[distro].main_archive
-    older = [
-        Version(spph.source_package_version)
-        for spph in archive.getPublishedSources(
-            source_name=package,
-            exact_match=True,
-        )
-        if Version(spph.source_package_version) < version
-    ]
+    with launchpad_errors():
+        archive = get_launchpad().distributions[distro].main_archive
+        older = [
+            Version(spph.source_package_version)
+            for spph in archive.getPublishedSources(
+                source_name=package,
+                exact_match=True,
+            )
+            if Version(spph.source_package_version) < version
+        ]
     if not older:
         return None
     return max(older)
@@ -561,20 +570,22 @@ def fetch_source_from_launchpad(distro, package, version):
     pruned from the archive mirror pool but Launchpad still has it in its
     publishing history and librarian.
     """
-    archive = get_launchpad().distributions[distro].main_archive
-    spphs = archive.getPublishedSources(
-        source_name=package,
-        version=str(version),
-        exact_match=True,
-    )
-    spph = next(iter(spphs), None)
+    with launchpad_errors():
+        archive = get_launchpad().distributions[distro].main_archive
+        spphs = archive.getPublishedSources(
+            source_name=package,
+            version=str(version),
+            exact_match=True,
+        )
+        spph = next(iter(spphs), None)
+        urls = spph.sourceFileUrls() if spph is not None else []
     if spph is None:
         raise IndexError(
             "%s %s not found in Launchpad %s archive" % (package, version, distro),
         )
 
     pooldir = pool_directory(distro, package)
-    for url in spph.sourceFileUrls():
+    for url in urls:
         name = url.rsplit("/", 1)[-1]
         filename = "%s/%s/%s" % (ROOT, pooldir, name)
         if os.path.isfile(filename):
@@ -582,12 +593,20 @@ def fetch_source_from_launchpad(distro, package, version):
 
         logging.info("Fetching %s from Launchpad", name)
         ensure(filename)
-        try:
-            with closing(urlopen(url)) as url_f, open(filename, "wb") as out_f:
-                out_f.write(url_f.read())
-        except OSError:
-            logging.warning("Downloading %s from Launchpad failed", url)
-            raise
+        # Download next to the final name so that an interrupted download
+        # isn't later taken for a complete file
+        with launchpad_errors():
+            try:
+                with (
+                    closing(urlopen(url, timeout=LAUNCHPAD_TIMEOUT)) as url_f,
+                    open(filename + ".part", "wb") as out_f,
+                ):
+                    shutil.copyfileobj(url_f, out_f)
+            except OSError:
+                logging.warning("Downloading %s from Launchpad failed", url)
+                tree.remove(filename + ".part")
+                raise
+        os.rename(filename + ".part", filename)
 
     update_pool_sources(distro, package)
 
@@ -1054,12 +1073,49 @@ def gen_buglink_from_comment(comment):
 
 LAUNCHPAD = None
 
+# Seconds before giving up on a Launchpad request; launchpadlib already
+# retries 502 and 503 errors on its own
+LAUNCHPAD_TIMEOUT = 120
+
+# Set after the first Launchpad failure, so that the rest of the run doesn't
+# wait on a timeout for every package while Launchpad is unavailable
+LAUNCHPAD_FAILED = False
+
+
+class LaunchpadUnavailable(Exception):
+    """Launchpad couldn't be queried; the answer is unknown, not negative."""
+
+
+@contextmanager
+def launchpad_errors():
+    """Turn any Launchpad failure into LaunchpadUnavailable.
+
+    After the first failure, Launchpad isn't queried again in this run.
+    """
+    global LAUNCHPAD_FAILED
+
+    if LAUNCHPAD_FAILED:
+        raise LaunchpadUnavailable("Launchpad failed earlier in this run")
+    try:
+        yield
+    except (RestfulError, HttpLib2Error, OSError) as e:
+        LAUNCHPAD_FAILED = True
+        logging.warning(
+            "Launchpad query failed, not using Launchpad for the rest of this run: %s",
+            e,
+        )
+        raise LaunchpadUnavailable(str(e)) from e
+
 
 def get_launchpad():
     global LAUNCHPAD
 
     if LAUNCHPAD is None:
-        LAUNCHPAD = Launchpad.login_anonymously("merge-o-matic", "production")
+        LAUNCHPAD = Launchpad.login_anonymously(
+            "merge-o-matic",
+            "production",
+            timeout=LAUNCHPAD_TIMEOUT,
+        )
     return LAUNCHPAD
 
 
@@ -1097,32 +1153,28 @@ def get_date_superseded(package, base_version):
 
     base_version = Version(base_version)
 
-    src_distro = get_launchpad().distributions[SRC_DISTRO]
     src_series_name = SRC_DIST
     # Hack to cope with Launchpad only knowing about Debian codenames, not
     # suite names.
     if src_series_name == "unstable":
         src_series_name = "sid"
-    src_series = src_distro.getSeries(name_or_version=src_series_name)
-    src_archive = src_distro.main_archive
 
     date_superseded = None
-    for spph in src_archive.getPublishedSources(
-        source_name=package,
-        distro_series=src_series,
-        exact_match=True,
-        pocket="Release",
-    ):
-        version = Version(spph.source_package_version)
-        if version <= base_version:
-            break
-        date_superseded = spph.date_created
-    else:
-        if False:
-            print(
-                "Base version %s of %s never published in Debian %s."
-                % (base_version, package, SRC_DIST),
-            )
+    with launchpad_errors():
+        src_distro = get_launchpad().distributions[SRC_DISTRO]
+        src_series = src_distro.getSeries(name_or_version=src_series_name)
+        src_archive = src_distro.main_archive
+
+        for spph in src_archive.getPublishedSources(
+            source_name=package,
+            distro_series=src_series,
+            exact_match=True,
+            pocket="Release",
+        ):
+            version = Version(spph.source_package_version)
+            if version <= base_version:
+                break
+            date_superseded = spph.date_created
     return date_superseded
 
 
@@ -1131,25 +1183,26 @@ def proposed_package_version(package, our_version):
 
     our_version = Version(our_version)
 
-    our_distro = get_launchpad().distributions[OUR_DISTRO]
-    our_series = our_distro.getSeries(name_or_version=get_our_dist())
-    our_archive = our_distro.main_archive
-
     proposed_pkg = None
-    for spph in our_archive.getPublishedSources(
-        source_name=package,
-        distro_series=our_series,
-        exact_match=True,
-        pocket="Proposed",
-    ):
-        if spph.status not in ["Pending", "Published"]:
-            continue
-        version = Version(spph.source_package_version)
-        if version >= our_version:
-            proposed_pkg = spph.source_package_version
-            break
-        if version < our_version:
-            break
+    with launchpad_errors():
+        our_distro = get_launchpad().distributions[OUR_DISTRO]
+        our_series = our_distro.getSeries(name_or_version=get_our_dist())
+        our_archive = our_distro.main_archive
+
+        for spph in our_archive.getPublishedSources(
+            source_name=package,
+            distro_series=our_series,
+            exact_match=True,
+            pocket="Proposed",
+        ):
+            if spph.status not in ["Pending", "Published"]:
+                continue
+            version = Version(spph.source_package_version)
+            if version >= our_version:
+                proposed_pkg = spph.source_package_version
+                break
+            if version < our_version:
+                break
     return proposed_pkg
 
 
