@@ -518,8 +518,40 @@ def get_nearest_source(package, base):
     except (OSError, IndexError):
         pass
 
+    # Nothing older than the base is left in the pool either. This is
+    # typically a -0ubuntuN upload of an upstream release that Debian
+    # packaged later: the computed base never existed and the older Debian
+    # versions have since been expired from the pool. Launchpad still has
+    # them, so use the nearest older one as the merge base.
+    if not bases:
+        try:
+            nearest = find_launchpad_older_version(SRC_DISTRO, package, base)
+            if nearest is not None:
+                fetch_source_from_launchpad(SRC_DISTRO, package, nearest)
+                return get_pool_source(SRC_DISTRO, package, nearest)
+        except (OSError, IndexError):
+            pass
+
     version_sort(bases)
     return bases.pop()
+
+
+def find_launchpad_older_version(distro, package, version):
+    """Return the highest version of a source package older than the given
+    one that Launchpad has ever published in distro, or None.
+    """
+    archive = get_launchpad().distributions[distro].main_archive
+    older = [
+        Version(spph.source_package_version)
+        for spph in archive.getPublishedSources(
+            source_name=package,
+            exact_match=True,
+        )
+        if Version(spph.source_package_version) < version
+    ]
+    if not older:
+        return None
+    return max(older)
 
 
 def fetch_source_from_launchpad(distro, package, version):
