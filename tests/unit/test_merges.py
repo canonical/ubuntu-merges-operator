@@ -18,18 +18,70 @@ def merges_instance():
     return merges.Merges()
 
 
-@patch("charmlibs.systemd.service_running")
-def test_updating_true(mock_service_running, merges_instance):
-    mock_service_running.return_value = True
-    assert merges_instance.updating
-    mock_service_running.assert_called_once_with("ubuntu-merges.service")
+def systemctl_output(service, timer):
+    """Fake `systemctl show` output for the service, then the timer."""
+    return [MagicMock(stdout=service), MagicMock(stdout=timer)]
 
 
-@patch("charmlibs.systemd.service_running")
-def test_updating_false(mock_service_running, merges_instance):
-    mock_service_running.return_value = False
-    assert not merges_instance.updating
-    mock_service_running.assert_called_once_with("ubuntu-merges.service")
+@patch("merges.run")
+def test_report_status_running(mock_run, merges_instance):
+    # A running oneshot service is "activating", with no exit time yet
+    mock_run.side_effect = systemctl_output(
+        "ActiveState=activating\nResult=success\nExecMainStatus=0\n"
+        "ExecMainStartTimestamp=Tue 2026-10-20 14:00:05 UTC\nExecMainExitTimestamp=\n",
+        "NextElapseUSecRealtime=Tue 2026-10-20 16:00:00 UTC\n",
+    )
+    report = merges_instance.report_status()
+    assert report == merges.ReportStatus(
+        running=True,
+        succeeded=True,
+        exit_status="0",
+        started="2026-10-20 14:00 UTC",
+        finished=None,
+        next_run="2026-10-20 16:00 UTC",
+    )
+    service_call, timer_call = mock_run.call_args_list
+    assert service_call.args[0][:3] == ["systemctl", "show", "ubuntu-merges.service"]
+    assert timer_call.args[0][:3] == ["systemctl", "show", "ubuntu-merges.timer"]
+    assert service_call.kwargs["env"]["TZ"] == "UTC"
+
+
+@patch("merges.run")
+def test_report_status_failed(mock_run, merges_instance):
+    mock_run.side_effect = systemctl_output(
+        "ActiveState=failed\nResult=exit-code\nExecMainStatus=4\n"
+        "ExecMainStartTimestamp=Fri 2026-10-16 21:35:21 UTC\n"
+        "ExecMainExitTimestamp=Fri 2026-10-16 21:36:24 UTC\n",
+        "NextElapseUSecRealtime=Fri 2026-10-16 22:00:00 UTC\n",
+    )
+    report = merges_instance.report_status()
+    assert not report.running
+    assert not report.succeeded
+    assert report.exit_status == "4"
+    assert report.finished == "2026-10-16 21:36 UTC"
+
+
+@patch("merges.run")
+def test_report_status_never_run(mock_run, merges_instance):
+    mock_run.side_effect = systemctl_output(
+        "ActiveState=inactive\nResult=success\nExecMainStatus=0\n"
+        "ExecMainStartTimestamp=\nExecMainExitTimestamp=\n",
+        "NextElapseUSecRealtime=\n",
+    )
+    report = merges_instance.report_status()
+    assert (report.running, report.started, report.finished, report.next_run) == (
+        False,
+        None,
+        None,
+        None,
+    )
+
+
+@patch("merges.run")
+def test_report_status_systemctl_failure(mock_run, merges_instance):
+    mock_run.side_effect = CalledProcessError(1, "systemctl")
+    with pytest.raises(CalledProcessError):
+        merges_instance.report_status()
 
 
 @patch("merges.apt")

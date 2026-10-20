@@ -8,7 +8,7 @@ and do not attempt to manipulate the underlying machine.
 """
 
 from subprocess import CalledProcessError
-from unittest.mock import PropertyMock, patch
+from unittest.mock import patch
 
 import ops
 import pytest
@@ -19,6 +19,7 @@ from ops.testing import (
     BindAddress,
     BlockedStatus,
     Context,
+    MaintenanceStatus,
     Network,
     Relation,
     State,
@@ -26,6 +27,7 @@ from ops.testing import (
 )
 
 from charm import UbuntuMergesCharm
+from merges import ReportStatus
 
 
 @pytest.fixture
@@ -122,22 +124,58 @@ def test_start_success(start_mock, ctx, base_state):
     }
 
 
-@patch("charm.Merges.updating", new_callable=PropertyMock)
-def test_update_status_updating(updating_mock, ctx, base_state):
-    """Test update_status when service is updating."""
-    updating_mock.return_value = True
-    out = ctx.run(ctx.on.update_status(), base_state)
-    assert out.unit_status == ops.MaintenanceStatus("Generating merges report")
-    assert updating_mock.called
+def report_status(**kwargs):
+    defaults = {
+        "running": False,
+        "succeeded": True,
+        "exit_status": "0",
+        "started": "2026-10-20 14:00 UTC",
+        "finished": "2026-10-20 15:10 UTC",
+        "next_run": "2026-10-20 16:00 UTC",
+    }
+    return ReportStatus(**{**defaults, **kwargs})
 
 
-@patch("charm.Merges.updating", new_callable=PropertyMock)
-def test_update_status_active(updating_mock, ctx, base_state):
-    """Test update_status when service is active (not updating)."""
-    updating_mock.return_value = False
+@patch("charm.Merges.report_status")
+@pytest.mark.parametrize(
+    "report, status",
+    [
+        (
+            report_status(running=True, finished=None),
+            MaintenanceStatus("Generating merges report (started 2026-10-20 14:00 UTC)"),
+        ),
+        (
+            report_status(started=None, finished=None),
+            ActiveStatus("No report generated yet, next run 2026-10-20 16:00 UTC"),
+        ),
+        (
+            report_status(),
+            ActiveStatus(
+                "Last report finished 2026-10-20 15:10 UTC, next run 2026-10-20 16:00 UTC"
+            ),
+        ),
+        (
+            report_status(succeeded=False, exit_status="4"),
+            ActiveStatus(
+                "Last report failed 2026-10-20 15:10 UTC (exit 4), "
+                "next run 2026-10-20 16:00 UTC; see journalctl -u ubuntu-merges"
+            ),
+        ),
+    ],
+)
+def test_update_status(report_status_mock, report, status, ctx, base_state):
+    report_status_mock.return_value = report
     out = ctx.run(ctx.on.update_status(), base_state)
-    assert out.unit_status == ActiveStatus()
-    assert updating_mock.called
+    assert out.unit_status == status
+
+
+@patch("charm.Merges.report_status")
+def test_update_status_systemctl_failure(report_status_mock, ctx):
+    """The status is left as it was if systemctl fails."""
+    report_status_mock.side_effect = CalledProcessError(1, "systemctl")
+    state = State(leader=True, unit_status=ActiveStatus("previous"))
+    out = ctx.run(ctx.on.update_status(), state)
+    assert out.unit_status == ActiveStatus("previous")
 
 
 @patch("charm.Merges.start")

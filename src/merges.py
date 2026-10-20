@@ -6,6 +6,8 @@
 import logging
 import os
 import shutil
+from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from subprocess import PIPE, STDOUT, CalledProcessError, run
 
@@ -33,6 +35,51 @@ SRVDIR = Path("/srv/merges")
 APACHE_MERGES_UBUNTU_CONFIG_PATH = Path("/etc/apache2/sites-enabled/merges.ubuntu.com.conf")
 APACHE_PATCHES_UBUNTU_CONFIG_PATH = Path("/etc/apache2/sites-enabled/patches.ubuntu.com.conf")
 
+SERVICE = "ubuntu-merges.service"
+TIMER = "ubuntu-merges.timer"
+
+
+@dataclass
+class ReportStatus:
+    """State of the report service, with times as short UTC strings."""
+
+    running: bool
+    succeeded: bool
+    exit_status: str
+    started: str | None
+    finished: str | None
+    next_run: str | None
+
+
+def _systemctl_show(unit: str, *properties: str) -> dict[str, str]:
+    """Return the given properties of a systemd unit, with UTC timestamps."""
+    result = run(
+        [
+            "systemctl",
+            "show",
+            unit,
+            "--timestamp=utc",
+            "--property=" + ",".join(properties),
+        ],
+        stdout=PIPE,
+        stderr=PIPE,
+        text=True,
+        check=True,
+        # --timestamp=utc doesn't apply to the timer's next elapse time
+        env={**os.environ, "TZ": "UTC"},
+    )
+    return dict(line.split("=", 1) for line in result.stdout.splitlines() if "=" in line)
+
+
+def _short_time(timestamp: str) -> str | None:
+    """Shorten a systemd timestamp like "Tue 2026-10-20 20:28:49 UTC"."""
+    try:
+        when = datetime.strptime(timestamp, "%a %Y-%m-%d %H:%M:%S UTC")
+    except ValueError:
+        # Empty or "n/a" when the unit never ran
+        return None
+    return when.strftime("%Y-%m-%d %H:%M UTC")
+
 
 class Merges:
     """Represent a merges instance in the workload."""
@@ -52,10 +99,27 @@ class Merges:
             self.env["HTTPS_PROXY"] = juju_https_proxy
             self.proxies["https"] = juju_https_proxy
 
-    @property
-    def updating(self) -> bool:
-        """Check if the systemd service is active."""
-        return systemd.service_running("ubuntu-merges.service")
+    def report_status(self) -> ReportStatus:
+        """Return the state of the report service and its timer."""
+        service = _systemctl_show(
+            SERVICE,
+            "ActiveState",
+            "Result",
+            "ExecMainStatus",
+            "ExecMainStartTimestamp",
+            "ExecMainExitTimestamp",
+        )
+        timer = _systemctl_show(TIMER, "NextElapseUSecRealtime")
+        logger.info("Report service: %s, timer: %s", service, timer)
+        return ReportStatus(
+            # A oneshot service is "activating" while it runs, never "active"
+            running=service.get("ActiveState") == "activating",
+            succeeded=service.get("Result") == "success",
+            exit_status=service.get("ExecMainStatus", ""),
+            started=_short_time(service.get("ExecMainStartTimestamp", "")),
+            finished=_short_time(service.get("ExecMainExitTimestamp", "")),
+            next_run=_short_time(timer.get("NextElapseUSecRealtime", "")),
+        )
 
     def _install_packages(self):
         """Install the Debian packages needed."""

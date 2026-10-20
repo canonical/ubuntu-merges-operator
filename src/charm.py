@@ -83,11 +83,31 @@ class UbuntuMergesCharm(ops.CharmBase):
         self.unit.set_ports(MERGES_PORT, PATCHES_PORT)
 
     def _on_update_status(self, event: ops.UpdateStatusEvent):
-        """Reflecting the status of the systemd service."""
-        if self._merges.updating:
-            self.unit.status = ops.MaintenanceStatus("Generating merges report")
+        """Reflect the status of the report service in the unit status."""
+        try:
+            report = self._merges.report_status()
+        except CalledProcessError as e:
+            logger.warning("Failed to get the report service status: %s", e)
+            return
+
+        if report.running:
+            self.unit.status = ops.MaintenanceStatus(
+                f"Generating merges report (started {report.started})"
+            )
+        elif report.finished is None:
+            self.unit.status = ops.ActiveStatus(
+                f"No report generated yet, next run {report.next_run}"
+            )
+        elif report.succeeded:
+            self.unit.status = ops.ActiveStatus(
+                f"Last report finished {report.finished}, next run {report.next_run}"
+            )
         else:
-            self.unit.status = ops.ActiveStatus()
+            # The timer retries on the next run, so this needs no intervention
+            self.unit.status = ops.ActiveStatus(
+                f"Last report failed {report.finished} (exit {report.exit_status}), "
+                f"next run {report.next_run}; see journalctl -u ubuntu-merges"
+            )
 
     def _on_config_changed(self, event):
         """Update configuration."""
