@@ -70,6 +70,10 @@ cp data/HEADER-patches.html "$MOMLIB_ROOT"/published/HEADER.html
 cp data/robots.txt "$MOMLIB_ROOT"/merges/
 cp data/robots.txt "$MOMLIB_ROOT"/published/
 
+# Site icons, browsers look for them at the root without needing a link
+cp data/favicon.ico data/apple-touch-icon.png "$MOMLIB_ROOT"/merges/
+cp data/favicon.ico data/apple-touch-icon.png "$MOMLIB_ROOT"/published/
+
 # Fetch a file into $MOMLIB_ROOT, keeping the previous copy if the download
 # fails so that a network glitch doesn't abort the whole run
 fetch () {
