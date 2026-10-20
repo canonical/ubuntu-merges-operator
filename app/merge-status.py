@@ -48,11 +48,13 @@ from momlib import (
     pathhash,
     proposed_package_version,
     read_blocklist,
+    read_date_superseded_cache,
     read_no_base,
     read_report,
     remove_old_comments,
     result_dir,
     run,
+    write_date_superseded_cache,
 )
 from util import tree
 
@@ -126,6 +128,10 @@ def main(options, args):
 
     blocklist = read_blocklist()
 
+    date_cache = read_date_superseded_cache()
+    # Only keep the dates for this run's merges, unless some were skipped
+    used_dates = date_cache.copy() if options.component else {}
+
     outstanding = []
     if os.path.isfile("%s/outstanding-merges.txt" % ROOT):
         after_uvf = True
@@ -171,20 +177,23 @@ def main(options, args):
                 base_version = None
             teams = get_responsible_team(source["Package"])
             # Without a base, count from when Debian moved past our version
-            try:
-                date_superseded = get_date_superseded(
-                    source["Package"],
-                    base_version or left_version,
-                )
-            except LaunchpadUnavailable:
-                date_superseded = None
-            if not date_superseded:
-                age = datetime.timedelta(0)
-            else:
+            since_version = base_version or left_version
+            date_key = "%s %s" % (source["Package"], since_version)
+            date_superseded = date_cache.get(date_key)
+            days_old = 0
+            if date_superseded is None:
+                try:
+                    date_superseded = get_date_superseded(
+                        source["Package"],
+                        since_version,
+                    )
+                except LaunchpadUnavailable:
+                    # Unknown, rather than pretending it's brand new
+                    days_old = None
+            if date_superseded:
+                used_dates[date_key] = date_superseded
                 ds_aware = date_superseded.replace(tzinfo=timezone.utc)
-                age = now - ds_aware
-
-            days_old = age.days
+                days_old = (now - ds_aware).days
 
             filename = changes_file(our_distro, source)
             if os.path.isfile(filename):
@@ -239,7 +248,11 @@ def main(options, args):
                     teams,
                 ),
             )
-        merges.sort(reverse=True)
+        # Unknown ages go last within their section
+        merges.sort(
+            key=lambda m: (m[0], -1 if m[1] is None else m[1], m[2]),
+            reverse=True,
+        )
 
         write_status_page(our_component, merges, our_distro, src_distro)
         write_status_json(our_component, merges, our_distro, src_distro)
@@ -247,6 +260,8 @@ def main(options, args):
         status_file = "%s/merges/tomerge-%s" % (ROOT, our_component)
         remove_old_comments(status_file, merges)
         write_status_file(status_file, merges)
+
+    write_date_superseded_cache(used_dates)
 
 
 def get_uploader(distro, source):
@@ -587,7 +602,14 @@ def do_table(status, merges, left_distro, right_distro, component):
         right_version,
         teams,
     ) in merges:
-        colour_idx = get_importance(age)
+        if age is None:
+            colour_idx = get_importance(0)
+            age_cell = (
+                '<td rowspan=2 title="Launchpad could not be queried">?</td>'
+            )
+        else:
+            colour_idx = get_importance(age)
+            age_cell = f"<td rowspan=2>{age}</td>"
         if user is not None:
             (usr_name, usr_mail) = parseaddr(user)
             user_lp_page = get_person_lp_page(usr_mail)
@@ -722,9 +744,7 @@ def do_table(status, merges, left_distro, right_distro, component):
         print(
             f"""
             </td>
-            <td rowspan=2>
-            {age}
-            </td>
+            {age_cell}
             </tr>
             <tr bgcolor="{COLOURS[colour_idx]}">
               """,

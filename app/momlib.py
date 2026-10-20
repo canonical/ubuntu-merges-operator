@@ -1178,6 +1178,38 @@ def get_date_superseded(package, base_version):
     return date_superseded
 
 
+def date_superseded_file():
+    """Cache of get_date_superseded() results, keyed on package and version."""
+    return "%s/date-superseded.json" % ROOT
+
+
+def read_date_superseded_cache():
+    """Read the cached dates, as {"package version": datetime}.
+
+    A date never changes once Debian has moved past a version, so it can
+    stand in for Launchpad when it can't be queried.
+    """
+    if not os.path.exists(date_superseded_file()):
+        return {}
+    try:
+        with open(date_superseded_file()) as cache_file:
+            entries = json.load(cache_file)
+        return {
+            key: datetime.datetime.fromisoformat(value)
+            for key, value in entries.items()
+        }
+    except (OSError, ValueError, AttributeError) as e:
+        logging.warning("Ignoring the date superseded cache: %s", e)
+        return {}
+
+
+def write_date_superseded_cache(cache):
+    """Write out the cached dates."""
+    entries = {key: value.isoformat() for key, value in sorted(cache.items())}
+    with tree.AtomicFile(date_superseded_file(), "wt") as cache_file:
+        json.dump(entries, cache_file, indent=1)
+
+
 def proposed_package_version(package, our_version):
     from debian.debian_support import Version
 
