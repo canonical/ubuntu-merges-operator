@@ -425,7 +425,7 @@ from momlib import *
 </head>
 <body>
 <div class="container">
-    <img src="./.static/img/ubuntulogo-100.png" id="ubuntu" alt="Ubuntu Logo">
+    <img src="/.static/img/ubuntulogo-100.png" id="ubuntu" alt="Ubuntu Logo">
     <h1>Merge-o-Matic: {component}</h1>
 
     <div id="filters">
@@ -475,8 +475,8 @@ from momlib import *
             f"""
     <h2 id="stats">Statistics</h2>
     <div class="stats-container">
-        <img src="{component}-now.png" alt="Current Statistics">
-        <img src="{component}-trend.png" alt="Six Month Trend">
+        <img src="/{component}-now.png" alt="Current Statistics">
+        <img src="/{component}-trend.png" alt="Six Month Trend">
     </div>
 
     <footer>
@@ -667,7 +667,7 @@ def do_table(status, merges, left_distro, right_distro, component):
             f"""
         <tr bgcolor={COLOURS[colour_idx]} class=first>
             <td>
-                <tt><a href="{pathhash(package)}/{package}/{report}">{package}</a></tt>
+                <tt><a href="/{pathhash(package)}/{package}/{report}">{package}</a></tt>
                 <sup><a href="https://launchpad.net/ubuntu/+source/{package}">LP</a></sup>
                 <sup><a href="https://tracker.debian.org/{package}">PTS</a></sup>
               """,
@@ -687,7 +687,7 @@ def do_table(status, merges, left_distro, right_distro, component):
             f"""
               <td colspan=3>{who}</td>
               <td rowspan=2>
-                  <form method="get" action="addcomment.psp"><br />
+                  <form method="get" action="/addcomment.psp"><br />
                       <input type="hidden" name="component" value="{component}" />
                       <input type="hidden" name="package" value="{package}" />
               """,
