@@ -26,25 +26,17 @@ if [ "$DEBUG" = "y" ]; then
 else
 	QUIET="-q"
 
-	if ! mkdir "$MOMLIB_ROOT"/.lock 2>/dev/null; then
-		# Only produce cronspam if running from a terminal or the
-		# lock has been held for more than three hours.
-		age () {
-			local now mtime
-			now="$(date +%s)"
-			mtime="$(stat -c %Y "$1" 2>/dev/null || echo "$now")"
-			echo "$(($now - $mtime))"
-		}
-		if [ -t 0 ] || \
-		   [ "$(age "$MOMLIB_ROOT"/.lock)" -gt \
-		     $((3 * 60 * 60)) ]; then
+	# Lock held by the kernel on the open file descriptor, released
+	# however the script exits so a killed run can't leave it stale
+	exec 9>"$MOMLIB_ROOT"/cron.lock
+	if ! flock -n 9; then
+		# Only complain if running from a terminal
+		if [ -t 0 ]; then
 			echo "LOCKED (another one running?)"
 			exit 1
-		else
-			exit 0
 		fi
+		exit 0
 	fi
-	trap 'rmdir $MOMLIB_ROOT/.lock' 0
 fi
 
 cd "$MOMLIB_ROOT"/code
