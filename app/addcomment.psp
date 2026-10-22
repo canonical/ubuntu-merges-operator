@@ -1,10 +1,12 @@
 <%
-from momlib import add_comment
+from momlib import DISTROS, add_comment
 
 if "package" in req.form and "comment" in req.form:
     add_comment(req.form["package"].decode("utf-8"), req.form["comment"].decode("utf-8"))
-    if "component" in req.form:
-        util.redirect(req, req.form["component"].decode("utf-8") + ".html")
+    component = req.form.getfirst("component", b"").decode("utf-8")
+    # Only redirect to our own status pages, not wherever the link says
+    if component in DISTROS["ubuntu"]["components"]:
+        util.redirect(req, "/" + component + ".html")
     else:
         req.write("Comment added.")
 else:
